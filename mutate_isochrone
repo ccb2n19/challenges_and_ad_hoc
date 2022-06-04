@@ -1,0 +1,49 @@
+library(traveltime)
+
+geometry_as_vector <- function(x) {
+  x %>%
+    st_coordinates() %>%
+    as.numeric() %>%
+    rev()
+}
+
+tt_simp <- function(coords, minutes, mode, time) {
+  traveltime_map(
+    appId = tt_id,
+    apiKey = tt_key,
+    location = coords,
+    traveltime = 60 * minutes,
+    type = mode,
+    departure = time
+  )
+}
+
+mutate_isochrone <- function(x) {
+  
+  output <- x %>%
+    st_transform(4326) %>%
+    mutate(
+      coords = geometry %>%
+        map(
+          ~.x %>% geometry_as_vector
+        )
+    ) %>%
+    st_drop_geometry() %>%
+    mutate(
+      isochrone = pmap(
+        lst(coords, minutes, mode, time),
+        tt_simp
+      )
+    ) %>%
+    unnest(
+      isochrone
+    ) %>%
+    st_as_sf(
+      crs = 4326
+    ) %>%
+    st_transform(
+      x %>% st_crs()
+    )
+  
+  output
+}
